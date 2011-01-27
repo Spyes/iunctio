@@ -19,6 +19,7 @@ char send_data[1024], recv_data[1024];
 char oname[1024], *ipa;    // other user's name
 struct sockaddr_in serv_addr, cli_addr;
 int line = 0;
+int uname_len, oname_len;   // length of my name, and other user's name
 
 void *thread( void *data )
 {
@@ -40,7 +41,10 @@ void *thread( void *data )
         else
         {
             line++;
-            mvwprintw( chatw, line, 1, "%s: %s", oname, recv_data );      // print the message
+            wattron( chatw, COLOR_PAIR(2) );
+            mvwprintw( chatw, line, 1, "%s:", oname );      // print the message
+            wattroff( chatw, COLOR_PAIR(2) );
+            mvwprintw( chatw, line, oname_len+3, "%s", recv_data );
             wmove( inputw, 1, 1 );              // move the cursor back to the input window
             wrefresh( chatw );
             wrefresh( inputw );
@@ -108,8 +112,13 @@ int main( int argc, char** argv )
         }
         ipa = (char *)inet_ntoa( cli_addr.sin_addr );
 
-        // get the name of the user that connected
+        // get the name of the user that connected, and send ours
+        send( newsockfd, uname, strlen(uname), 0 );
         int n = recv( newsockfd, oname, 1024, 0 );
+
+        // store length of my name and other user's name
+        oname_len = strlen(oname);
+        uname_len = strlen( uname );
 
         init_win();
         start_thread();
@@ -134,8 +143,12 @@ int main( int argc, char** argv )
             else
             {
                 line++;
-                mvwprintw( chatw, line, 1, "%s: %s", uname, send_data );
+                wattron( chatw, COLOR_PAIR(1) );
+                mvwprintw( chatw, line, 1, "%s: ", uname );
+                wattroff( chatw, COLOR_PAIR(1) );                       
+                mvwprintw( chatw, line, uname_len+3, "%s", send_data );
                 wrefresh( chatw );
+                refresh();                
                 clean_input();
                 send( newsockfd, send_data, strlen( send_data ), 0 );
             }

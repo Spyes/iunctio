@@ -4,6 +4,7 @@ WINDOW * create_win( int height, int width, int starty, int startx );
 void init_win();
 void destroy_win( WINDOW* local_win );
 void shutdown_win();
+void init_color_pairs();
 
 //WINDOW* chatw;
 //WINDOW* inputw; 
@@ -13,6 +14,7 @@ void init_win()
     int sx, sy, w, h;
     
     initscr();
+    start_color();
     keypad( stdscr, TRUE );
 
     // chat window
@@ -33,6 +35,7 @@ void init_win()
     inputw = create_win( h, w, sy, sx );
     wmove( inputw, 1, 1 );
     wrefresh( inputw );
+    init_color_pairs();
 }
 
 WINDOW* create_win( int height, int width, int starty, int startx )
@@ -67,3 +70,11 @@ void clean_input()
     wrefresh( inputw );
 }
 
+void init_color_pairs()
+{
+    // you
+    init_pair( 1, COLOR_CYAN, COLOR_BLACK );
+
+    // person you're talking to
+    init_pair( 2, COLOR_RED, COLOR_BLACK );
+}

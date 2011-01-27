@@ -11,6 +11,8 @@ int sockfd, portno, n;
 struct sockaddr_in serv_addr;
 char recv_data[1024], send_data[1024];
 int line = 0;
+char oname[1024];
+int uname_len, oname_len;   // length of my name, and other user's name
 
 void *thread( void *data )
 {
@@ -31,7 +33,10 @@ void *thread( void *data )
         else
         {
             line++;
-            mvwprintw( chatw, line, 1, "%s: %s", saddr, recv_data );
+            wattron( chatw, COLOR_PAIR(2) );
+            mvwprintw( chatw, line, 1, "%s:", oname );
+            wattroff( chatw, COLOR_PAIR(2) );
+            mvwprintw( chatw, line, oname_len+3, "%s", recv_data );
             wmove( inputw, 1, 1 );
             wrefresh( chatw );
             wrefresh( inputw );
@@ -57,6 +62,7 @@ void start_thread()
 int main( int argc, char** argv )
 {
     init_win();
+
     struct hostent *server;
     char *uname;
     
@@ -105,6 +111,10 @@ int main( int argc, char** argv )
     }
     // before we do anything else, send the server our username
     send( sockfd, uname, strlen(uname), 0 );
+    recv( sockfd, oname, 1024, 0 );
+
+    uname_len = strlen(uname);
+    oname_len = strlen(oname);
 
     start_thread();
     while(1)
@@ -117,10 +127,16 @@ int main( int argc, char** argv )
         if( strcmp( send_data, "Q" ) != 0 )
         {
             line++;
-            mvwprintw( chatw, line, 1, "%s: %s", uname, send_data );
+
+            wattron( chatw, COLOR_PAIR(1) );
+            mvwprintw( chatw, line, 1, "%s:", uname );
+            wattroff( chatw, COLOR_PAIR(1) );
+            mvwprintw( chatw, line, uname_len+3, send_data );
             wrefresh( chatw );
             clean_input();
-            send( sockfd, send_data, strlen( send_data ), 0 );
+
+            // send that data off to davey jones!
+            send( sockfd, send_data, strlen( send_data ), 0 );  
         }
         
         else
