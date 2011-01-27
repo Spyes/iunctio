@@ -103,13 +103,14 @@ int main( int argc, char** argv )
         perror( "ERROR connecting\n" );
         exit( 1 );
     }
-    start_thread();
+    // before we do anything else, send the server our username
+    send( sockfd, uname, strlen(uname), 0 );
 
+    start_thread();
     while(1)
     {
         // Ask for a message from the user, this message
         // will be read by server
-        //printf( "\nSEND (Q to quit): " );
         mvwgetstr( inputw, 1, 1, send_data );
         wrefresh( inputw );
 

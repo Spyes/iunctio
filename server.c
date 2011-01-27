@@ -16,15 +16,16 @@
 // sockfd - socket descriptor returned from socket()
 int sockfd, newsockfd, portno, clilen;
 char send_data[1024], recv_data[1024];
+char oname[1024], *ipa;    // other user's name
 struct sockaddr_in serv_addr, cli_addr;
 int line = 0;
 
 void *thread( void *data )
 {
     int n;
-    char *ipa;
-    ipa = (char *)inet_ntoa( cli_addr.sin_addr );       // address of the client
-
+//    char *ipa;
+//    ipa = (char *)inet_ntoa( cli_addr.sin_addr );       // address of the client
+    
     while( 1 )
     {
         // recieve data
@@ -39,9 +40,10 @@ void *thread( void *data )
         else
         {
             line++;
-            mvwprintw( chatw, line, 1, "%s: %s", ipa, recv_data );      // print the message
+            mvwprintw( chatw, line, 1, "%s: %s", oname, recv_data );      // print the message
             wmove( inputw, 1, 1 );              // move the cursor back to the input window
             wrefresh( chatw );
+            wrefresh( inputw );
         }
     }
     shutdown_win();
@@ -51,93 +53,98 @@ void *thread( void *data )
 
 void start_thread()
 {
-	pthread_t hthread;
-	void *args = NULL;
-	int result = pthread_create( &hthread, NULL, &thread, args );
+    pthread_t hthread;
+    void *args = NULL;
+    int result = pthread_create( &hthread, NULL, &thread, args );
     if( result )
     {
         printf( "ERORR on pthread_create(), code %d\n", result );
         exit( 1 );
-    }
+    }   
 }
 
 int main( int argc, char** argv )
 {
-	char *uname = "server";
+    // our username
+    char *uname = "server";
 
-	printf( "Once you have a connection, SEND (Q to quit)\n" );
+    // First call to socket() function
+    sockfd = socket( AF_INET, SOCK_STREAM, 0 );
+    if( sockfd < 0 )
+    {
+        perror( "ERROR opening socket" );
+        exit( 1 );
+    }
 
-	// First call to socket() function
-	sockfd = socket( AF_INET, SOCK_STREAM, 0 );
-	if( sockfd < 0 )
-	{
-		perror( "ERROR opening socket" );
-		exit( 1 );
-	}
+    // Initialize socket structure
+    bzero((char*) &serv_addr, sizeof( serv_addr ) );
+    portno = SERVER_PORT;
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_addr.s_addr = INADDR_ANY;
+    serv_addr.sin_port = htons( portno );
 
-	// Initialize socket structure
-	bzero((char*) &serv_addr, sizeof( serv_addr ) );
-	portno = SERVER_PORT;
-	serv_addr.sin_family = AF_INET;
-	serv_addr.sin_addr.s_addr = INADDR_ANY;
-	serv_addr.sin_port = htons( portno );
+    // Now bind the host address using bind() call
+    if( bind( sockfd, (struct sockaddr *) &serv_addr,
+              sizeof( serv_addr ) ) < 0 )
+    {
+        perror( "ERROR on binding" );
+        exit( 1 );
+    }
 
-	// Now bind the host address using bind() call
-	if( bind( sockfd, (struct sockaddr *) &serv_addr,
-				sizeof( serv_addr ) ) < 0 )
-	{
-		perror( "ERROR on binding" );
-		exit( 1 );
-	}
+    // Now start listening for the clients, here process will
+    // go into sleep mode and will wait for the incoming connection
+    listen( sockfd, 5 );
+    while( 1 )
+    {
+        clilen = sizeof( cli_addr );
 
-	// Now start listening for the clients, here process will
-	// go in sleep mode and will wait for the incoming connection
-	listen( sockfd, 5 );
-	while( 1 )
-	{
-		clilen = sizeof( cli_addr );
+        // Accept actual connection from the client
+        newsockfd = accept( sockfd, (struct sockaddr *)&cli_addr,
+                            &clilen );
+        if( newsockfd < 0 )
+        {
+            perror( "ERROR on accept" );
+            exit( 1 );
+        }
+        ipa = (char *)inet_ntoa( cli_addr.sin_addr );
 
-		// Accept actual connection from the client
-		newsockfd = accept( sockfd, (struct sockaddr *)&cli_addr,
-				&clilen );
-		if( newsockfd < 0 )
-		{
-			perror( "ERROR on accept" );
-			exit( 1 );
-		}
-		char *ipa;
-		ipa = (char *)inet_ntoa( cli_addr.sin_addr );
-		printf( "Connection from %s\n", ipa );
+        // get the name of the user that connected
+        int n = recv( newsockfd, oname, 1024, 0 );
 
-		init_win();
+        init_win();
         start_thread();
-		while( 1 )
-		{
-			mvwgetstr( inputw, 1, 1, send_data );
-			wrefresh( inputw );
 
-			if( strcmp( send_data, "Q" ) == 0 )
-			{
-				send( newsockfd, send_data, 
-						strlen( send_data ), 0 );
-				close( newsockfd );
-				break;
-			}
+        line++;
+        mvwprintw( chatw, line, 1, "Connection from %s [%s]\n", oname, ipa );
+        wrefresh(chatw);
 
-			else
-			{
-				line++;
-				mvwprintw( chatw, line, 1, "%s: %s", uname, send_data );
-				wrefresh( chatw );
-				clean_input();
-				send( newsockfd, send_data, strlen( send_data ), 0 );
-			}
+        while( 1 )
+        {
+            mvwgetstr( inputw, 1, 1, send_data );
+            wrefresh( inputw );
 
-		}
-		shutdown_win();
-	}
+            if( strcmp( send_data, "Q" ) == 0 )
+            {
+                send( newsockfd, send_data, 
+                      strlen( send_data ), 0 );
+                close( newsockfd );
+                break;
+            }
+
+            else
+            {
+                line++;
+                mvwprintw( chatw, line, 1, "%s: %s", uname, send_data );
+                wrefresh( chatw );
+                clean_input();
+                send( newsockfd, send_data, strlen( send_data ), 0 );
+            }
+
+        }
+        shutdown_win();
+    }
 
     pthread_exit( NULL );
-	close( sockfd );
-	return 0;
+    close( sockfd );
+    return 0;
 }
