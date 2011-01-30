@@ -20,6 +20,7 @@ char oname[1024], *ipa;    // other user's name
 struct sockaddr_in serv_addr, cli_addr;
 int line = 0;
 int uname_len, oname_len;   // length of my name, and other user's name
+bool quit = false;
 
 void *thread( void *data )
 {
@@ -29,6 +30,10 @@ void *thread( void *data )
     
     while( 1 )
     {
+        if( quit )
+        {
+            pthread_exit(NULL);
+        }
         // recieve data
         n = recv( newsockfd, recv_data, 1024, 0 );
         recv_data[n] = '\0';    // add a new-line char at the end of the message
@@ -50,8 +55,8 @@ void *thread( void *data )
             wrefresh( inputw );
         }
     }
-    shutdown_win();
-    close( sockfd );
+    //  shutdown_win();
+    // close( sockfd );
     pthread_exit( NULL );
 }
 
@@ -60,14 +65,15 @@ void start_thread()
     pthread_t hthread;
     void *args = NULL;
     int result = pthread_create( &hthread, NULL, &thread, args );
-    if( result )
+    // TAKE CARE OF THIS!!
+/*    if( result )
     {
-        printf( "ERORR on pthread_create(), code %d\n", result );
-        exit( 1 );
-    }   
+       sprintf( err, "ERORR on pthread_create(), code %d\n", result );
+       return 1;
+       }   */
 }
 
-int main( int argc, char** argv )
+int start_server( char *err )
 {
     // our username
     char *uname = "server";
@@ -76,8 +82,8 @@ int main( int argc, char** argv )
     sockfd = socket( AF_INET, SOCK_STREAM, 0 );
     if( sockfd < 0 )
     {
-        perror( "ERROR opening socket" );
-        exit( 1 );
+        sprintf( err, "ERROR opening socket" );
+        return 1;
     }
 
     // Initialize socket structure
@@ -91,8 +97,8 @@ int main( int argc, char** argv )
     if( bind( sockfd, (struct sockaddr *) &serv_addr,
               sizeof( serv_addr ) ) < 0 )
     {
-        perror( "ERROR on binding" );
-        exit( 1 );
+        sprintf( err, "ERROR on binding" );
+        return 1;
     }
 
     // Now start listening for the clients, here process will
@@ -107,8 +113,8 @@ int main( int argc, char** argv )
                             &clilen );
         if( newsockfd < 0 )
         {
-            perror( "ERROR on accept" );
-            exit( 1 );
+            sprintf( err, "ERROR on accept" );
+            return 1;
         }
         ipa = (char *)inet_ntoa( cli_addr.sin_addr );
 
@@ -120,7 +126,7 @@ int main( int argc, char** argv )
         oname_len = strlen(oname);
         uname_len = strlen( uname );
 
-        init_win();
+        //init_win();
         start_thread();
 
         line++;
@@ -134,6 +140,7 @@ int main( int argc, char** argv )
 
             if( strcmp( send_data, "Q" ) == 0 )
             {
+                quit = true;
                 send( newsockfd, send_data, 
                       strlen( send_data ), 0 );
                 close( newsockfd );
@@ -154,7 +161,7 @@ int main( int argc, char** argv )
             }
 
         }
-        shutdown_win();
+        //shutdown_win();
     }
 
     pthread_exit( NULL );

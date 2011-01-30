@@ -1,8 +1,12 @@
 CC = gcc
 CFLAGS = -pthread
 LFLAGS = -lncurses -pthread
+SRC = iunctio.c server.c window.c
 CSRC = client.c window.c
 SOBJ = server.o window.o
+
+iunctio:
+	$(CC) $(SRC) -o iunctio $(LFLAGS)
 
 client:
 	$(CC) $(CSRC) -o client $(LFLAGS)
@@ -18,6 +22,9 @@ window.o: window.c
 
 server: $(SOBJ)
 	$(CC) $(SOBJ) -o server $(LFLAGS)
+
+clean:
+	rm -f *.o iunctio
 
 cclient:
 	rm -f client
